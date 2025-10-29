@@ -76,8 +76,30 @@ mongoose.connection.on('disconnected', () => {
   !isProd && console.log('⚠️  MongoDB disconnected');
 });
 
-app.get("/", (_req, res) => res.json({ status: "ok", db: mongoose.connection.readyState === 1, readyState: mongoose.connection.readyState }));
-app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/", async (_req, res) => {
+  // If not connected, try to connect (helps serverless cold starts)
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      // swallow here, we'll return the connection state below
+      !isProd && console.error('Health-check: failed to connect', err.message || err);
+    }
+  }
+  return res.json({ status: "ok", db: mongoose.connection.readyState === 1, readyState: mongoose.connection.readyState });
+});
+
+app.get("/api/health", async (_req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      !isProd && console.error('Health-check: failed to connect', err.message || err);
+      return res.status(503).json({ status: 'error', db: false, readyState: mongoose.connection.readyState, message: 'DB connection failed' });
+    }
+  }
+  return res.json({ status: "ok", db: true, readyState: mongoose.connection.readyState });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
