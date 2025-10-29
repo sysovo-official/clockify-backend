@@ -10,5 +10,5 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Export the Express app for Vercel serverless
+// Export the Express app for Vercel serverless.
 export default app;
